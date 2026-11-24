@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: login hub spokes all verify console teardown spoke-gpu spoke-gpu-delete spoke-cpu spoke-cpu-delete spoke-catalog spoke-infra spoke-join spoke-commit spoke-uninstall
+.PHONY: login hub spokes all verify console federation teardown spoke-gpu spoke-gpu-delete spoke-cpu spoke-cpu-delete spoke-catalog spoke-infra spoke-join spoke-commit spoke-uninstall
 # Run hack/quay-env.sh once first. Every script is safe to rerun.
 # With clusters.local.yaml (clusters.example.yaml): a kubeconfig per cluster in .kube-cache/; rerun
 # when a token expires (a day). NAMES="host site-a" logs in to those only.
@@ -23,6 +23,13 @@ verify:
 # The provider console (Task 9): Argo CD app console builds and deploys it; this adds its secrets.
 console:
 	bash bootstrap/60-console.sh
+# OSAC single-login federation (OSAC-6437 Phase 1; OSAC-8173): an OIDC IdP on the hub's OpenShift
+# OAuth federating to Keycloak realm osac, a provider-admin test user, the RBAC binding, and
+# (OSAC_PROXY_REDIRECTS="https://<osac-ui>/api/grids/<id>/callback ...") the OSAC UI proxy's
+# OAuthClient. Run after make hub (and make console, for the ClusterRole). Verified by
+# verify/12-hub-federation.sh.
+federation:
+	bash bootstrap/37-hub-federation.sh
 teardown:
 	bash bootstrap/99-teardown.sh
 # Preparing a remote spoke (kubeconfig $KUBEDIR/<SPOKE>, from make login); see the runbook's remote-spoke table.

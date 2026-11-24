@@ -43,6 +43,21 @@ backend addresses (`modelBackendIP`, `providerIP`) assume the default `172.30.0.
 `make all` is `hub` then `spokes`; it doesn't add any cluster to the grid. Every script is safe to rerun (`make all` on the built hub,
 2026-10-19: no changes, `make verify` ALL PASS).
 
+### OSAC single-login federation (hub)
+
+`make federation` (after `make hub`, and `make console` for the ClusterRole) turns the Phase 0 spike
+into a rerunnable step: Keycloak realm `osac` (Argo CD imports
+`apps/keycloak/manifests/realm-osac.yaml` once Secret `ai-grid-hub-federation` exists), an OIDC
+identity provider `osac` on the hub's OpenShift OAuth federating to it, a `provider-admin` test user
+(password in Secret `ai-grid-test-users`), the ClusterRoleBinding that makes the federated user a
+provider admin, and — when `OSAC_PROXY_REDIRECTS` lists the OSAC UI proxy's exact callback URIs
+(`https://<osac-ui-host>/api/grids/<grid-id>/callback`) — the `ai-grid-proxy` OAuthClient with its
+secret in Secret `ai-grid-proxy-oauth`. This is what the OSAC UI proxy's grid package (OSAC-8173)
+exchanges an OSAC session against. `verify/12-hub-federation.sh` checks it, including the
+same-Keycloak-host condition the silent login depends on; the browser token chain itself is verified
+with the OSAC-8173 kit against a live OSAC UI, not here. Production repoints the issuer at the OSAC
+management cluster's Keycloak; the hub-side shape stays the same.
+
 ### Moving spokes to a new nightly
 
 Every nightly build is published as the same version, `rhods-operator.3.6.0`, so changing `catalogImage`
@@ -421,3 +436,10 @@ Each is in git with a comment where it applies; the plan's ledger has the detail
   the spoke's Redis; Kuadrant owns the rest, and teardown never deletes it.
 - **ACM observability add-on** (`ClusterManagementAddOn multicluster-observability-addon`): Policy
   `rhai-metrics-hub` adds the `rhai-metrics` ScrapeConfig to its configs with `musthave`.
+- **OAuth cluster** (`oauth cluster`): `bootstrap/37-hub-federation.sh` merge-patches
+  `spec.identityProviders`, keeping every existing provider and replacing only a previous `osac`
+  entry. The authentication operator owns the object; a cluster upgrade or reconfiguration that
+  rewrites identityProviders drops the entry — rerun `make federation`. The script also copies the
+  router's CA (ConfigMap `openshift-config-managed/router-ca`) to `openshift-config/osac-federation-ca`
+  for the IdP's `openID.ca`, because a ConfigMap in `openshift-config-managed` can't be referenced
+  from the OAuth spec directly.

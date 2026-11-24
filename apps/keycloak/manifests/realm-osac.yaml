@@ -1,0 +1,44 @@
+# The OSAC single-login realm (OSAC-6437 Phase 1): a slim stand-in for the OSAC management
+# cluster's Keycloak, so the hub's OpenShift OAuth can federate to it and the OSAC UI proxy can
+# exchange an OSAC session for a hub token (OSAC-8173, the osac-ui proxy's grid package).
+# Production repoints the issuer at the OSAC Keycloak; the hub-side IdP shape is the same.
+# The hub OAuth callback and the client secret come from Secret ai-grid-hub-federation
+# (bootstrap/37-hub-federation.sh creates it; nothing secret or host-specific in git).
+# Users and their passwords come from bootstrap/37-hub-federation.sh, not git.
+# PLACEHOLDER names: osac, openshift-oauth-osac.
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakRealmImport
+metadata:
+  name: osac
+  namespace: keycloak
+  annotations: { argocd.argoproj.io/sync-wave: "3" }
+spec:
+  keycloakCRName: maas-keycloak
+  placeholders:
+    KEYCLOAK_PUBLIC_URL: { secret: { name: ai-grid-tenant-idps, key: keycloak-url } }
+    HUB_OAUTH_CALLBACK: { secret: { name: ai-grid-hub-federation, key: hub-oauth-callback } }
+    OSAC_HUB_OAUTH_SECRET: { secret: { name: ai-grid-hub-federation, key: hub-oauth-client-secret } }
+  realm:
+    realm: osac
+    enabled: true
+    editUsernameAllowed: false
+    verifyEmail: false
+    bruteForceProtected: true
+    permanentLockout: false
+    failureFactor: 10
+    waitIncrementSeconds: 60
+    maxFailureWaitSeconds: 900
+    clients:
+      # The hub OAuth server's relying-party client. Confidential, and allowed only the hub's
+      # IdP callback (https://oauth-openshift.<apps domain>/oauth2callback/osac). OpenShift's
+      # OAuth RP does not send PKCE to the IdP, so the client carries no
+      # pkce.code.challenge.method attribute — the OSAC UI proxy's own client (the OAuthClient
+      # bootstrap/37-hub-federation.sh registers on the hub) does use PKCE.
+      - clientId: openshift-oauth-osac
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: "${OSAC_HUB_OAUTH_SECRET}"
+        standardFlowEnabled: true
+        directAccessGrantsEnabled: false
+        redirectUris: ["${HUB_OAUTH_CALLBACK}"]
+        webOrigins: ["+"]
