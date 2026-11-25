@@ -58,6 +58,23 @@ same-Keycloak-host condition the silent login depends on; the browser token chai
 with the OSAC-8173 kit against a live OSAC UI, not here. Production repoints the issuer at the OSAC
 management cluster's Keycloak; the hub-side shape stays the same.
 
+### OSAC UI proxy grids config (per grid)
+
+`make grids-config` (after `make console` and `make federation` with this grid's callback in
+`OSAC_PROXY_REDIRECTS`) writes the OSAC UI proxy's `grids.json` from this hub's live state — the
+provider console route, the hub OAuth server, the `ai-grid-proxy` OAuthClient secret, and the IdP
+name:
+
+```
+GRID_ID=sno-01 GRIDS_OUT=/tmp/grids.json make grids-config
+```
+
+`GRID_ID` is the OSAC UI's name for this hub and must match the callback URI the OAuthClient was
+created with. Several grids merge into one file: run it per hub checkout with the same `GRIDS_OUT`
+(entries replace by grid ID). The file carries the OAuthClient secret — hand it to the OSAC UI as
+`GRIDS_CONFIG_FILE` and never commit it. Without `GRIDS_OUT` the single entry prints to stdout,
+secret included: it belongs in the operator's terminal, never in a log.
+
 ### Moving spokes to a new nightly
 
 Every nightly build is published as the same version, `rhods-operator.3.6.0`, so changing `catalogImage`

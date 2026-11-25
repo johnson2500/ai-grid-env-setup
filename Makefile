@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: login hub spokes all verify console federation teardown spoke-gpu spoke-gpu-delete spoke-cpu spoke-cpu-delete spoke-catalog spoke-infra spoke-join spoke-commit spoke-uninstall
+.PHONY: login hub spokes all verify console federation grids-config teardown spoke-gpu spoke-gpu-delete spoke-cpu spoke-cpu-delete spoke-catalog spoke-infra spoke-join spoke-commit spoke-uninstall
 # Run hack/quay-env.sh once first. Every script is safe to rerun.
 # With clusters.local.yaml (clusters.example.yaml): a kubeconfig per cluster in .kube-cache/; rerun
 # when a token expires (a day). NAMES="host site-a" logs in to those only.
@@ -30,6 +30,11 @@ console:
 # verify/12-hub-federation.sh.
 federation:
 	bash bootstrap/37-hub-federation.sh
+# The OSAC UI proxy's grids config for this hub (OSAC-6437 Phase 4): GRID_ID is the OSAC UI's name
+# for the hub and must match the OAuthClient callback from make federation; GRIDS_OUT merges across
+# hubs (run per hub checkout with the same file).
+grids-config:
+	bash bootstrap/38-osac-grids-config.sh
 teardown:
 	bash bootstrap/99-teardown.sh
 # Preparing a remote spoke (kubeconfig $KUBEDIR/<SPOKE>, from make login); see the runbook's remote-spoke table.

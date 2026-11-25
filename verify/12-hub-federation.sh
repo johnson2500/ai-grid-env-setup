@@ -46,5 +46,12 @@ if kc $HOST get oauthclient ai-grid-proxy >/dev/null 2>&1; then
     bash -c "kc $HOST get oauthclient ai-grid-proxy -o json | jq -e '.redirectURIs | length > 0' >/dev/null"
   uat "proxy OAuthClient secret kept" "Secret ai-grid-proxy-oauth missing in $ns (bootstrap/37-hub-federation.sh)" \
     bash -c "kc $HOST get secret ai-grid-proxy-oauth -n $ns -o json | jq -e '.data.clientSecret' >/dev/null"
+  # What make grids-config reads: with GRID_ID set, the OAuthClient's redirect URIs must name it
+  # (https://<osac-ui-host>/api/grids/<GRID_ID>/callback), or the OSAC UI's silent login will fail
+  # on the callback the proxy registered.
+  if [[ -n ${GRID_ID:-} ]]; then
+    uat "OAuthClient callback names GRID_ID" "no redirectURI of ai-grid-proxy contains /api/grids/$GRID_ID/callback: rerun OSAC_PROXY_REDIRECTS=... make federation with this GRID_ID" \
+      bash -c "kc $HOST get oauthclient ai-grid-proxy -o json | jq -e --arg g \"$GRID_ID\" 'any(.redirectURIs[]; contains(\"/api/grids/\" + \$g + \"/callback\"))' >/dev/null"
+  fi
 fi
 summary
